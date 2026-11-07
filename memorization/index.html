@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>How Much Do Language Models Memorize? — Research, Explained</title>
+<meta name="description" content="An interactive explainer of Morris et al.'s 'How Much Do Language Models Memorize?' (arXiv:2505.24832): model capacity in bits-per-parameter, double descent, and a membership-inference scaling law." />
+<link rel="icon" type="image/svg+xml" href="assets/favicon.svg" />
+<link rel="stylesheet" href="style.css" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" crossorigin="anonymous" />
+</head>
+<body>
+<a class="skip-link" href="#main-content">Skip to content</a>
+<div id="progress-bar" aria-hidden="true"></div>
+
+<nav class="site-nav" aria-label="Section navigation">
+  <div class="nav-inner">
+    <a class="nav-brand" href="index.html">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#a3341f"/><path d="M7 23 L7 15 L12 15 L12 23 Z" fill="#fff"/><path d="M13.5 23 L13.5 10 L18.5 10 L18.5 23 Z" fill="#fff"/><path d="M20 23 L20 13 L25 13 L25 23 Z" fill="#fff" opacity="0.6"/></svg>
+      Research, Explained
+    </a>
+    <button id="nav-hamburger" class="icon-btn hamburger" aria-label="Toggle navigation menu" aria-expanded="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
+    </button>
+    <ul class="nav-links" id="nav-links">
+      <li><a href="#big-picture">Big Picture</a></li>
+      <li><a href="#background">Background</a></li>
+      <li><a href="#how-it-works">How It Works</a></li>
+      <li><a href="#experiments">Experiments</a></li>
+      <li><a href="#double-descent">Double Descent</a></li>
+      <li><a href="#scaling-law">Scaling Law</a></li>
+      <li><a href="#results">Results</a></li>
+      <li><a href="#quiz">Quiz</a></li>
+      <li><a href="#why-it-matters">Why It Matters</a></li>
+      <li><a href="#glossary">Glossary</a></li>
+    </ul>
+    <div class="nav-spacer"></div>
+    <div class="nav-controls">
+      <button id="theme-toggle" class="icon-btn" aria-label="Toggle dark mode"></button>
+    </div>
+  </div>
+</nav>
+
+<main class="page" id="main-content">
+  <a class="back-link" href="../index.html">&larr; All Papers</a>
+  <p class="kicker">Paper explainer</p>
+  <h1>How Much Do Language Models Memorize?</h1>
+  <p class="subtitle">Morris, Sitawarin, Guo, Kokhlikyan, Suh, Rush, Chaudhuri &amp; Mahloujifar — FAIR at Meta, Google DeepMind, Cornell, NVIDIA (2025). <a href="https://arxiv.org/abs/2505.24832" target="_blank" rel="noopener">arXiv:2505.24832</a></p>
+
+  <!-- ================= 1. BIG PICTURE ================= -->
+  <section id="big-picture">
+    <h2>The Big Picture</h2>
+    <p>
+      Modern language models are trained on staggering amounts of text, yet their weights are a fixed, comparatively tiny
+      number of parameters. That raises a very concrete question: when a model gets good at predicting text, how much of
+      its skill is just <em>rote storage</em> of the training examples it saw, versus genuine, reusable understanding of
+      language? And is there a hard limit to how much a model can store, measured precisely, in bits?
+    </p>
+    <p>
+      This paper answers both questions with a single number: <strong>GPT-style transformer language models can store
+      approximately 3.6 bits of information per parameter</strong> <span class="pg">p.1</span>. That's not a vague estimate —
+      the authors derive a formal, information-theoretic definition of memorization, then measure it directly by training
+      hundreds of models on data whose exact information content they control.
+    </p>
+
+    <div class="callout key-idea">
+      <div class="callout-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6"/><path d="M10 21h4"/><path d="M12 3a6 6 0 0 0-3.5 10.9c.6.44 1 1.16 1 1.94V17h5v-1.16c0-.78.4-1.5 1-1.94A6 6 0 0 0 12 3Z"/></svg> Key idea</div>
+      <p>
+        The paper splits everything a model "knows" about its training data into two pieces: <strong>unintended
+        memorization</strong> (information about one specific dataset that doesn't generalize) and
+        <strong>generalization</strong> (information about the true pattern behind the data, which any well-trained model
+        would pick up). Once you can measure these separately, in bits, you can define a model's total <strong>capacity</strong>
+        — the most it can ever unintentionally memorize — as a real, measurable property of the architecture and precision,
+        not just a vibe.
+      </p>
+    </div>
+
+    <div class="callout analogy">
+      <div class="callout-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><polygon points="14.5 9.5 10.5 10.5 9.5 14.5 13.5 13.5"/></svg> Analogy</div>
+      <p>
+        Think of a model's parameters as a fixed number of shelves in a storage room. While you have more shelves than
+        items, you can give every item its own shelf — pure memorization. Once the number of items outgrows the shelves,
+        you're forced to start grouping similar items together and keeping only a shared description of each group instead
+        of every item individually. That shared description is generalization — and the paper finds the switch-over point
+        is remarkably sharp, not gradual.
+      </p>
+    </div>
+
+    <p>
+      Why it matters: regulators, researchers, and practitioners constantly ask whether a language model "memorized" a
+      particular document (for privacy or copyright reasons). Prior approaches tried to answer this by seeing whether a
+      model could be prompted to output the text verbatim — but that confuses memorization with a model simply being
+      capable of producing a string for other reasons (the paper's own example: a model that computes <span class="katex-target" data-tex="2^{100}">2^100</span>
+      correctly hasn't necessarily "memorized" that fact — it may have generalized the rule of exponentiation) <span class="pg">p.3</span>.
+      This paper instead gives a precise, bit-level accounting that cleanly separates the two.
+    </p>
+  </section>
+
+  <!-- ================= 2. BACKGROUND ================= -->
+  <section id="background">
+    <h2>Background Concepts</h2>
+
+    <h3>Entropy and bits</h3>
+    <p>
+      Shannon's entropy <span class="katex-target" data-tex="H(X)">H(X)</span> measures how much uncertainty — equivalently, how much information, in bits —
+      a random variable <span class="katex-target" data-tex="X">X</span> contains. A fair coin flip carries exactly 1 bit of uncertainty; a predictable
+      sequence carries close to 0. Crucially, you cannot (on average) compress samples from <span class="katex-target" data-tex="X">X</span> into fewer bits than
+      <span class="katex-target" data-tex="H(X)">H(X)</span> without losing information.
+    </p>
+    <p>
+      <strong>Mutual information</strong> extends this to two variables: <span class="katex-target" data-tex="I(X,Y) = H(X) - H(X \mid Y)" data-display>I(X,Y) = H(X) − H(X|Y)</span>
+      is how many bits of uncertainty about <span class="katex-target" data-tex="X">X</span> are resolved once you know <span class="katex-target" data-tex="Y">Y</span>.
+      The paper's core trick is to treat memorization itself as a mutual-information quantity: how many bits about the
+      training set are "resolved" by knowing the trained model <span class="pg">p.4</span>.
+    </p>
+
+    <h3>Kolmogorov complexity</h3>
+    <p>
+      Shannon entropy is defined for <em>random variables</em> — distributions you can sample from repeatedly. But in
+      practice there is only one dataset and one trained model, both fixed, specific objects. To talk about the
+      information content of a single, specific string, the paper turns to <strong>Kolmogorov complexity</strong>
+      <span class="katex-target" data-tex="H^K(x)">H^K(x)</span>: the length of the shortest program that outputs <span class="katex-target" data-tex="x">x</span> exactly <span class="pg">p.5</span>.
+      Given a reference object <span class="katex-target" data-tex="\theta">θ</span> to use as a helper, <span class="katex-target" data-tex="H^K(x \mid \theta)">H^K(x|θ)</span> is the length of the
+      shortest program that outputs <span class="katex-target" data-tex="x">x</span> when it's allowed to consult <span class="katex-target" data-tex="\theta">θ</span>.
+    </p>
+    <div class="callout misconception">
+      <div class="callout-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 3.9 2.6 17a2 2 0 0 0 1.7 3h15.4a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/><line x1="12" y1="9.5" x2="12" y2="13.5"/><line x1="12" y1="16.5" x2="12.01" y2="16.5"/></svg> Common misconception</div>
+      <p>
+        "The model can be made to output this string, therefore it memorized it" is <em>not</em> a safe inference. The
+        paper points out that models can be coerced into outputting almost any string with the right prompt, and that
+        prompting tricks like "repeat cat 1000 times" obviously don't indicate memorization of "cat cat cat … cat"
+        <span class="pg">p.12</span>. Generation ability alone is not proof of memorization — which is exactly why the
+        paper insists on a compression-based, information-theoretic definition instead.
+      </p>
+    </div>
+
+    <h3>Compression as a practical stand-in</h3>
+    <p>
+      Exact Kolmogorov complexity is uncomputable, so the paper approximates it using <strong>arithmetic coding</strong>, a
+      compression scheme whose achievable code length for a string is tied directly to how well a probabilistic model
+      predicts that string (a classical result connecting prediction and compression, going back to Shannon) <span class="pg">p.5</span>.
+      Concretely, the code length for <span class="katex-target" data-tex="x">x</span> under a model <span class="katex-target" data-tex="\hat\theta">θ̂</span> is approximated as its negative
+      log-likelihood: <span class="katex-target" data-tex="H^K(x \mid \hat\theta) \approx -\log p(x \mid \hat\theta)" data-display>H^K(x|θ̂) ≈ −log p(x|θ̂)</span>.
+      This is what makes the whole framework measurable: a model's own loss on a sequence <em>is</em> an estimate of how
+      many bits are needed to describe that sequence given the model.
+    </p>
+
+    <h3>Loss-based membership inference</h3>
+    <p>
+      The paper also uses a standard, simple privacy-style attack as a complementary measurement: pick a loss cutoff, and
+      guess that any example scoring below it was in the training set <span class="pg">p.9</span>. Performance is reported
+      as an F1 score, where <strong>0.5 means the attack is no better than guessing</strong>. This loss-based membership
+      inference (MI) will reappear as the subject of the paper's scaling law later on.
+    </p>
+  </section>
+
+  <!-- ================= 3. HOW IT WORKS ================= -->
+  <section id="how-it-works">
+    <h2>How It Works</h2>
+    <p>
+      Putting the background together, the paper defines two cleanly separated quantities for a dataset <span class="katex-target" data-tex="X">X</span>,
+      a "true" reference model <span class="katex-target" data-tex="\Theta">Θ</span> representing the real data-generating process, and a trained model <span class="katex-target" data-tex="\hat\Theta">Θ̂</span>:
+    </p>
+    <p class="katex-target" data-tex="\mathrm{mem}_U(X,\hat\Theta,\Theta) = H(X\mid\Theta) - H(X\mid(\Theta,\hat\Theta))" data-display style="display:block;overflow-x:auto;">
+      mem_U(X, Θ̂, Θ) = H(X|Θ) − H(X|(Θ,Θ̂))  &nbsp;(unintended memorization)
+    </p>
+    <p class="katex-target" data-tex="\mathrm{mem}_I(X,\hat\Theta,\Theta) = \mathrm{mem}(X,\hat\Theta) - \mathrm{mem}_U(X,\hat\Theta,\Theta)" data-display style="display:block;overflow-x:auto;">
+      mem_I(X, Θ̂, Θ) = mem(X, Θ̂) − mem_U(X, Θ̂, Θ)  &nbsp;(generalization)
+    </p>
+    <p>
+      In words: unintended memorization is the extra information the model carries about <span class="katex-target" data-tex="X">X</span> <em>beyond</em> what a model
+      that only understood the general data-generating process would already know. Generalization is everything else —
+      the useful, reusable part.
+    </p>
+
+    <div class="callout key-idea">
+      <div class="callout-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6"/><path d="M10 21h4"/><path d="M12 3a6 6 0 0 0-3.5 10.9c.6.44 1 1.16 1 1.94V17h5v-1.16c0-.78.4-1.5 1-1.94A6 6 0 0 0 12 3Z"/></svg> The reference/oracle-model trick</div>
+      <p>
+        To actually compute this split, the paper needs a stand-in for "a model that only knows the true distribution." For
+        synthetic data (Section 3 of the paper) that's easy: the true distribution is known exactly, since the authors
+        generated it. For real text (Section 4), they instead use either an equal-sized model trained on the full,
+        maximal dataset, or a bigger "oracle" model trained far past what the target model saw — whichever achieves the
+        best (lowest-loss) compression on the data is used as the reference <span class="pg">p.8</span>. Subtracting its
+        compression of <span class="katex-target" data-tex="x">x</span> from the target model's compression of <span class="katex-target" data-tex="x">x</span> isolates the "extra, sample-specific" bits.
+      </p>
+    </div>
+
+    <p>
+      Summing unintended memorization over every example in a dataset gives a lower bound on the dataset's total
+      unintended memorization, and that total can never exceed the entropy of the trained model itself
+      (Proposition 1, <span class="pg">p.4</span>) — a nice sanity check: you can't memorize more than the model's own
+      information content. This lets the paper define <strong>capacity</strong> cleanly:
+    </p>
+    <p class="katex-target" data-tex="\mathrm{Capacity}(L) = \max_X \mathrm{mem}(X, L(X))" data-display style="display:block;overflow-x:auto;">
+      Capacity(L) = max over datasets X of mem(X, L(X))
+    </p>
+    <p>
+      i.e. the most unintended memorization achievable no matter how the dataset is chosen — measured in practice by
+      training to saturation on datasets of increasing size and finding the plateau <span class="pg">p.7</span>. The
+      appendix confirms this estimator is accurate: predicted vs. observed memorized bits agree to within about 1.7–1.8%
+      average error when the authors vary sequence length or vocabulary size independently <span class="pg">p.15</span>.
+    </p>
+
+    <h3>From theory to a measurement pipeline</h3>
+    <div class="pipeline">
+      <div class="pipeline-step">
+        <div class="pipeline-num">1</div>
+        <div class="pipeline-body">
+          <h4>Sample a dataset</h4>
+          <p>Either uniform random bitstrings (known entropy exactly) or real deduplicated text (FineWeb).</p>
+        </div>
+      </div>
+      <div class="pipeline-step">
+        <div class="pipeline-num">2</div>
+        <div class="pipeline-body">
+          <h4>Train the target model θ̂</h4>
+          <p>A GPT-2-architecture transformer trained from scratch on that dataset.</p>
+        </div>
+      </div>
+      <div class="pipeline-step">
+        <div class="pipeline-num">3</div>
+        <div class="pipeline-body">
+          <h4>Score each example under θ̂</h4>
+          <p>Estimate H<sup>K</sup>(x|θ̂) as −log p(x|θ̂) — the model's own negative log-likelihood.</p>
+        </div>
+      </div>
+      <div class="pipeline-step">
+        <div class="pipeline-num">4</div>
+        <div class="pipeline-body">
+          <h4>Score each example under a reference model θ</h4>
+          <p>The true distribution (synthetic case) or an oracle/full-data model (text case).</p>
+        </div>
+      </div>
+      <div class="pipeline-step">
+        <div class="pipeline-num">5</div>
+        <div class="pipeline-body">
+          <h4>Subtract to get per-example unintended memorization</h4>
+          <p>The gap between the two code lengths is the sample-specific information θ̂ carries about x.</p>
+        </div>
+      </div>
+      <div class="pipeline-step">
+        <div class="pipeline-num">6</div>
+        <div class="pipeline-body">
+          <h4>Sum across the dataset</h4>
+          <p>Bounded above by the model's own entropy (Proposition 1) — gives total dataset memorization.</p>
+        </div>
+      </div>
+      <div class="pipeline-step">
+        <div class="pipeline-num">7</div>
+        <div class="pipeline-body">
+          <h4>Repeat across dataset sizes, find the plateau</h4>
+          <p>The maximum over all dataset sizes is the model's capacity.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 4. EXPERIMENTS ================= -->
+  <section id="experiments">
+    <h2>Experiments</h2>
+
+    <h3>(a) Synthetic uniform random bitstrings — isolating pure capacity</h3>
+    <p>
+      To measure capacity without any confound from generalization, the authors first train on datasets where every
+      token is sampled uniformly at random, independent of everything else. There is no pattern to generalize to, so
+      every bit the model retains about the training data is, by construction, unintended memorization <span class="pg">p.7</span>.
+    </p>
+    <p>
+      Setup: GPT-2-style transformers with 1–8 layers and hidden dimensions scaled from 32 to 512, giving models from
+      about 100K to 20M parameters, trained for 10⁶ steps with batch size 2048 in bfloat16 on a single A100, vocabulary
+      size <span class="katex-target" data-tex="V=2048">V = 2048</span>, sequence length <span class="katex-target" data-tex="S=64">S = 64</span>, five random seeds per dataset size <span class="pg">p.7</span>.
+    </p>
+
+    <div class="widget">
+      <h4>Capacity filling up — interactive</h4>
+      <p class="widget-sub">
+        Based on the paper's own approximation <span class="katex-target" data-tex="\mathrm{mem}(X,L(X)) \approx \min(\mathrm{Capacity}(L), H(X))">mem(X,L(X)) ≈ min(Capacity(L), H(X))</span> (Appendix A.1, <span class="pg">p.15</span>),
+        with <span class="katex-target" data-tex="H(X) = N \cdot S \cdot \log_2 V">H(X) = N·S·log₂V</span> using the paper's own synthetic-experiment defaults S = 64, V = 2048.
+        Pick a model from Table 1 below and drag the slider (or press play) to grow the training set.
+      </p>
+      <div class="row">
+        <div>
+          <label for="capacity-model-select">Model (depth, width)</label>
+          <select id="capacity-model-select"></select>
+        </div>
+      </div>
+      <div style="margin-top:0.9rem">
+        <label for="capacity-n-slider">Training set size: N ≈ <span id="capacity-n-label"></span> samples</label>
+        <input type="range" id="capacity-n-slider" min="2" max="8" step="0.02" />
+      </div>
+      <svg id="capacity-chart" class="chart-svg" role="img" aria-label="Chart of memorized bits rising then plateauing at model capacity as training set size grows"></svg>
+      <div class="chart-controls">
+        <button id="capacity-play" class="chart-play-btn" type="button">▶ Play animation</button>
+      </div>
+      <div class="widget-readout" id="capacity-readout" aria-live="polite"></div>
+      <p class="widget-note">Assumption: fixed sequence length 64 and vocabulary size 2048, matching the paper's synthetic-data setup. Real text won't follow this exactly because generalization becomes possible (see part (b) below).</p>
+    </div>
+
+    <h3>Capacity by model depth and width</h3>
+    <p>Table 1 from the paper, reproduced exactly <span class="pg">p.6</span>. "α" is bits-per-parameter.</p>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr><th>Layers</th><th>Width</th><th>Params</th><th>Capacity (fp32, bits)</th><th>Capacity (bf16, bits)</th><th>α fp32</th><th>α bf16</th></tr>
+        </thead>
+        <tbody id="table1-body"></tbody>
+      </table>
+    </div>
+    <p class="table-caption">Mean across all 16 configurations: 3.83 ± 0.1 bits/param (fp32), 3.51 ± 0.1 bits/param (bf16) <span class="pg">p.6</span>. Figure 6's separately fitted estimate is α = 3.64 bits/param (bf16) <span class="pg">p.7</span> — the figure used elsewhere on this page as the headline ~3.6 bits/param result.</p>
+    <p>
+      A striking finding: doubling precision from bf16 to fp32 only raises measured capacity from 3.51 to 3.83
+      bits/parameter — nowhere near the naive 2× you'd expect from doubling the raw bit-width of each parameter. The
+      paper's reading: <strong>most of the extra bits that float32 adds over bfloat16 aren't actually used for raw
+      information storage</strong> <span class="pg">p.8</span>.
+    </p>
+
+    <div class="widget">
+      <h4>Parameter count → estimated capacity</h4>
+      <p class="widget-sub">
+        Enter a parameter count (e.g. <code>125M</code>, <code>1.5B</code>, <code>7M</code>) to see the estimated
+        memorization capacity at α = 3.64 bits/parameter (Figure 6's fitted estimate, used consistently across this page).
+      </p>
+      <div class="row">
+        <div>
+          <label for="calc-params">Parameter count</label>
+          <input type="text" id="calc-params" inputmode="latin" autocomplete="off" placeholder="e.g. 125M" />
+        </div>
+        <div style="flex:0 0 auto">
+          <button class="quiz-check-btn" id="calc-run" type="button" style="margin-top:0">Calculate</button>
+        </div>
+      </div>
+      <div class="widget-readout" id="calc-readout" aria-live="polite"></div>
+      <p class="widget-note">
+        Assumption: α = 3.64 bits/parameter is Figure 6's fitted estimate for GPT-style transformers in the synthetic,
+        uniform-random-data setting (Table 1's mean is 3.51–3.83 depending on precision) <span class="pg">p.1, p.6–7</span>.
+        Real models trained on real text won't store exactly this much <em>unintended</em> memorization per parameter,
+        since much of their capacity goes toward generalization instead (see part (b) below) — this calculator gives an
+        upper-bound-style estimate, not a prediction of actual memorized content.
+      </p>
+    </div>
+
+    <h3>(b) Real text — memorization vs. generalization</h3>
+    <p>
+      Repeating the setup on real text (the FineWeb dataset, with an extra deduplication pass — without it, truncating
+      sequences to 64 tokens creates 1–2% near-duplicates, which would inflate apparent memorization) <span class="pg">p.8</span>,
+      the picture changes: unintended memorization now <em>rises and then falls</em> as the dataset grows, instead of
+      simply plateauing. Early on, the model fills its capacity with example-specific detail; once the dataset grows past
+      capacity, the model starts substituting reusable, general patterns for sample-specific ones, and unintended
+      memorization <em>decreases</em> even as the model keeps improving on held-out data <span class="pg">p.8</span>.
+    </p>
+  </section>
+
+  <!-- ================= 5. DOUBLE DESCENT ================= -->
+  <section id="double-descent">
+    <h2>Double Descent / Grokking</h2>
+    <p>
+      The paper observes a sharp transition exactly where dataset size (in bits) crosses model capacity (in bits): test
+      loss spikes right at a dataset-to-capacity ratio of 1, then falls again as the dataset grows further past capacity
+      — the classic "double descent" shape <span class="pg">p.3, p.9</span>. Their explanation: once a model can no longer
+      memorize every example individually, it's forced to share information between examples to save capacity, and that
+      sharing <em>is</em> generalization <span class="pg">p.9</span>.
+    </p>
+
+    <div class="callout key-idea">
+      <div class="callout-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6"/><path d="M10 21h4"/><path d="M12 3a6 6 0 0 0-3.5 10.9c.6.44 1 1.16 1 1.94V17h5v-1.16c0-.78.4-1.5 1-1.94A6 6 0 0 0 12 3Z"/></svg> Three regimes</div>
+      <p>
+        <strong>Dataset ≪ capacity:</strong> everything fits comfortably; the model memorizes point-for-point.
+        <strong>Dataset ≈ capacity:</strong> the critical zone — this is where the double-descent peak in test loss appears.
+        <strong>Dataset ≫ capacity:</strong> memorization is no longer enough; the model is forced to generalize, and test
+        loss falls again.
+      </p>
+    </div>
+
+    <div class="widget">
+      <h4>Which regime am I in? — interactive</h4>
+      <p class="widget-sub">
+        Drag the slider to change the dataset-to-capacity ratio. The curve's <em>shape</em> (peaking sharply at ratio = 1)
+        is illustrative, drawn to match the qualitative pattern in the paper's Figure 3 — the paper demonstrates this
+        relationship empirically rather than with a closed-form equation, so no formula is implied here.
+      </p>
+      <label for="dd-slider">log₁₀(dataset size ÷ capacity)</label>
+      <input type="range" id="dd-slider" min="-2" max="3" step="0.02" />
+      <svg id="dd-chart" class="chart-svg" role="img" aria-label="Illustrative double-descent curve peaking at a dataset-to-capacity ratio of 1"></svg>
+      <div style="margin-top:0.8rem">
+        <span class="regime-pill" id="dd-regime"></span>
+      </div>
+      <div class="widget-readout" id="dd-readout" aria-live="polite"></div>
+    </div>
+  </section>
+
+  <!-- ================= 6. SCALING LAW ================= -->
+  <section id="scaling-law">
+    <h2>Membership Inference Scaling Law</h2>
+    <p>
+      Beyond synthetic data, the paper fits a predictive scaling law for loss-based membership-inference performance,
+      as a function of model capacity and dataset size <span class="pg">p.10</span>. As printed in the paper:
+    </p>
+    <p class="katex-target" data-tex="\mathrm{Membership}_{F_1}(\theta,\mathcal D) = \tfrac12\Big(1 + c_1\,\sigma\big(c_2\,(\tfrac{\mathrm{Capacity}(\theta)}{|\mathcal D|} + c_3)\big)\Big)" data-display style="display:block;overflow-x:auto;">
+      Membership_F1(θ, D) = ½·(1 + c₁·σ(c₂·(Capacity(θ)/|D| + c₃))), &nbsp; σ(x) = 1/(1+e⁻ˣ)
+    </p>
+    <p>
+      with fitted constants reported in the paper as <span class="katex-target" data-tex="c_1 = 1.34,\ c_2 = -0.034,\ c_3 = -33.14">c₁ = 1.34, c₂ = −0.034, c₃ = −33.14</span>, found with a
+      non-linear least-squares solver on the text experiments from Section 4 <span class="pg">p.10</span>.
+    </p>
+    <p>
+      In plain English, the idea is: for a fixed model capacity, membership inference starts near-perfect on tiny
+      datasets (easy to overfit, so train/test loss gap is large) and decays toward 0.5 — a coin flip — as the dataset
+      grows, because differentiating train from test examples by loss alone gets harder <span class="pg">p.10</span>.
+    </p>
+
+    <h3>Validation on larger models</h3>
+    <p>
+      The authors validate the law by training two much larger GPT-2-family models at dataset sizes chosen to target
+      specific membership-inference F1 scores of 0.55, 0.75, and 0.95 <span class="pg">p.10</span>. Table 2, reproduced exactly:
+    </p>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead><tr><th>Model</th><th>|θ| (params)</th><th>|D| (examples)</th><th>Predicted F1</th><th>Observed F1</th></tr></thead>
+        <tbody>
+          <tr><td>GPT-2 (1600-wide, 48 layers, ~1.56B params)<sup>†</sup></td><td>1,556,075,200</td><td>170,654,583</td><td>0.55</td><td>54.61 ± 1.3</td></tr>
+          <tr><td>GPT-2 (1600-wide, 48 layers, ~1.56B params)<sup>†</sup></td><td>1,556,075,200</td><td>76,795,021</td><td>0.75</td><td>71.08 ± 0.4</td></tr>
+          <tr><td>GPT-2 (1600-wide, 48 layers, ~1.56B params)<sup>†</sup></td><td>1,556,075,200</td><td>18,851,574</td><td>0.95</td><td>95.85 ± 0.8</td></tr>
+          <tr><td>GPT-2 (768-wide, 12 layers, ~124M params)<sup>†</sup></td><td>123,702,528</td><td>13,566,442</td><td>0.55</td><td>53.44 ± 1.1</td></tr>
+          <tr><td>GPT-2 (768-wide, 12 layers, ~124M params)<sup>†</sup></td><td>123,702,528</td><td>6,104,935</td><td>0.75</td><td>65.69 ± 0.6</td></tr>
+          <tr><td>GPT-2 (768-wide, 12 layers, ~124M params)<sup>†</sup></td><td>123,702,528</td><td>1,498,634</td><td>0.95</td><td>97.98 ± 0.3</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="table-footnote"><sup>†</sup> Table 2 (p.11) labels these "GPT2-XL" and "GPT2-Medium" by d_emb/n_layer (1600/48 and 768/12 respectively), while the body text on p.10 instead calls the smaller one "GPT-2 small (125M)". The 768-wide/12-layer configuration is architecturally GPT-2 small, not Medium — this is an inconsistency in the paper's own naming. We label both configurations by their actual width/depth/parameter count to avoid repeating the ambiguity.</p>
+    <p>
+      Predictions landed generally within about 1.5 points of the observed F1; the largest miss is at the F1 = 0.75
+      target, which the authors note is where the sigmoid is steepest <span class="pg">p.11</span>. (For context: all of
+      the paper's models, across every experiment, range from 500K to 1.5B parameters <span class="pg">p.1</span> — the
+      two models above are simply the largest end of that range, used specifically for this validation.)
+    </p>
+
+    <div class="widget">
+      <h4>Membership-inference vs. capacity ratio — interactive</h4>
+      <p class="widget-sub">
+        We checked the printed formula above against Table 2 ourselves, using Capacity(θ) = 3.64 × params (the bits-per-parameter
+        figure from Figure 6). Table 2's own numbers imply Capacity/|D| ≈ 33.2, 73.8, and 300.5 for the F1 = 0.55, 0.75, and
+        0.95 rows respectively (for <em>both</em> model sizes) — meaning F1 <em>rises</em> as Capacity/|D| rises.
+      </p>
+      <div class="disclosure-note">
+        <strong>Note:</strong> the equation as printed in the paper, with its reported constants (c₁ = 1.34, c₂ = −0.034,
+        c₃ = −33.14), does not reproduce Table 2 numerically — plugging in those Capacity/|D| values yields F1 values that
+        don't match Table 2's predicted or observed scores, and the printed form is monotonically <em>decreasing</em> in
+        Capacity/|D| where the data clearly requires an <em>increasing</em> relationship. Rather than silently "fixing" the
+        paper's constants and presenting a guess as fact, the chart below is anchored directly on Table 2's actual measured
+        points, with a smooth illustrative curve drawn through them for interpolation only.
+      </div>
+      <label for="sigmoid-slider" style="margin-top:0.9rem">Capacity(θ) / |D|</label>
+      <input type="range" id="sigmoid-slider" min="0" max="300" step="0.5" />
+      <svg id="sigmoid-chart" class="chart-svg" role="img" aria-label="Chart of membership inference F1 rising from 0.5 toward 1.0 as capacity per data point increases, with the paper's Table 2 points marked"></svg>
+      <div class="widget-readout" id="sigmoid-readout" aria-live="polite"></div>
+      <p class="widget-note">
+        Limiting behavior (this part <em>is</em> directly from the paper): as |D| → ∞ for fixed capacity, F1 → 0.5 — loss-based
+        membership inference approaches a coin flip <span class="pg">p.10</span>. The paper further notes that contemporary
+        language models, commonly trained at tokens-per-parameter ratios of 10² or higher, fall into the regime this law
+        predicts should give F1 ≈ 0.5 — i.e. loss-based membership inference on the <em>average</em> training example is not
+        expected to work reliably on models trained the way modern LLMs are <span class="pg">p.10</span>.
+      </p>
+    </div>
+  </section>
+
+  <!-- ================= 7. RESULTS ================= -->
+  <section id="results">
+    <h2>Results</h2>
+
+    <h3>Key findings</h3>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead><tr><th>Finding</th><th>Evidence</th></tr></thead>
+        <tbody>
+          <tr><td>GPT-style models store ~3.5–3.6 bits/parameter</td><td>Table 1, Figure 6 <span class="pg">p.6–7</span></td></tr>
+          <tr><td>Precision barely matters for raw storage (bf16→fp32 only 3.51→3.83 bpp)</td><td><span class="pg">p.8</span></td></tr>
+          <tr><td>Double descent begins exactly at dataset-to-capacity ratio = 1</td><td>Figure 3 <span class="pg">p.3, p.9</span></td></tr>
+          <tr><td>Membership inference is strictly easier than exact-suffix extraction</td><td>Figure 10 <span class="pg">p.9</span></td></tr>
+          <tr><td>At large, deduplicated dataset sizes, successful extraction is attributable to generalization, not memorization</td><td><span class="pg">p.9</span></td></tr>
+          <tr><td>A sigmoidal law relates capacity, dataset size, and membership-inference F1; predicts F1→0.5 for modern LLM-scale data ratios</td><td>Table 2, Figure 7 <span class="pg">p.10–11</span></td></tr>
+          <tr><td>Rare, non-English-language documents are the most memorized individual examples</td><td>Table 5, Figure 16 <span class="pg">p.17</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Extraction vs. membership inference</h3>
+    <p>
+      The paper separately measures exact-suffix extraction rates (can the model be greedily decoded into reproducing a
+      held-out suffix given a prefix?) and loss-based membership-inference F1, across the same models and dataset sizes
+      <span class="pg">p.9</span>. Both decline as the dataset grows, but membership inference stays substantially higher:
+      in some cases the model's membership score reaches <strong>0.97</strong> even when the exact-suffix extraction rate
+      is <strong>0</strong> <span class="pg">p.9</span>. In other words, failing to extract a verbatim continuation does
+      not mean a model carries no detectable trace of having trained on an example.
+    </p>
+
+    <h3>Why deduplication matters</h3>
+    <p>
+      Without deliberate deduplication, truncating real text to fixed 64-token sequences creates 1–2% accidental
+      duplicates, which inflates apparent memorization for reasons that have nothing to do with per-example learning
+      <span class="pg">p.8</span>. With careful deduplication, the paper finds that at large enough dataset sizes,
+      extraction rates converge almost exactly to the rate measured on completely unseen test data — meaning essentially
+      <strong>all</strong> successful extraction at that scale is explained by generalization, not memorization of that
+      specific example <span class="pg">p.9</span>. The paper also finds the examples that <em>do</em> get memorized most
+      are disproportionately documents with rare, high TF-IDF content — in one 20M-parameter model's analysis, the
+      twenty most-memorized training sequences out of over a quarter million were overwhelmingly non-English (Japanese,
+      Chinese, Hebrew, Greek) text that the model couldn't amortize across many similar examples <span class="pg">p.17</span>.
+    </p>
+  </section>
+
+  <!-- ================= 8. QUIZ ================= -->
+  <section id="quiz">
+    <h2>Quiz</h2>
+    <p>Six questions to check your understanding. Pick an answer and press "Check answer" to see feedback.</p>
+    <div id="quiz-container"></div>
+    <div id="quiz-score" role="status"></div>
+  </section>
+
+  <!-- ================= 9. WHY IT MATTERS ================= -->
+  <section id="why-it-matters">
+    <h2>Why This Paper Matters</h2>
+    <h3>For practitioners</h3>
+    <p>
+      It gives a concrete, bit-denominated way to reason about memorization risk instead of an informal "can I get it to
+      output this string" test. It also offers a sobering, scale-dependent conclusion: at the tokens-per-parameter ratios
+      common in modern LLM pretraining, loss-based membership inference on the <em>average</em> training example is
+      predicted to be statistically powerless <span class="pg">p.10</span> — but that doesn't mean no individual example
+      is ever at risk. Rare, unusual, hard-to-amortize examples remain disproportionately memorized regardless of overall
+      scale <span class="pg">p.17</span>.
+    </p>
+    <h3>For researchers</h3>
+    <p>
+      The paper supplies a rigorous, sample-level, training-algorithm-independent definition of memorization that cleanly
+      separates it from generalization — something extraction-based and prompt-based definitions could not do without
+      confounds <span class="pg">p.20</span>. It also offers a new, mechanistic explanation for <em>why</em> double
+      descent happens: not as a mysterious property of gradient descent, but as the direct consequence of a model running
+      out of room to memorize and being forced to share information across examples <span class="pg">p.9</span>.
+    </p>
+    <h3>The bigger picture</h3>
+    <p>
+      "How much did my model memorize?" moves from a qualitative judgment call to a measurable quantity in bits, grounded
+      in classical information theory rather than ad hoc probing — a foundation other work on privacy, capacity, and
+      generalization in language models can build on directly.
+    </p>
+  </section>
+
+  <!-- ================= 10. GLOSSARY ================= -->
+  <section id="glossary">
+    <h2>Glossary</h2>
+    <dl class="glossary">
+      <dt>Bit</dt><dd>The basic unit of information; the amount of uncertainty resolved by a single fair coin flip.</dd>
+      <dt>Entropy, H(X)</dt><dd>The expected number of bits needed to describe a sample from a random variable X; a measure of its uncertainty/information content.</dd>
+      <dt>Mutual information, I(X,Y)</dt><dd>H(X) − H(X|Y); how many bits of uncertainty about X are resolved by knowing Y.</dd>
+      <dt>Kolmogorov complexity, H<sup>K</sup>(x)</dt><dd>The length of the shortest program that outputs the specific string x exactly; the single-instance analogue of entropy. Uncomputable in general, approximated in this paper with compression.</dd>
+      <dt>Arithmetic coding</dt><dd>A compression algorithm whose achievable code length for a string is tied directly to a model's predicted probability of that string — used to approximate Kolmogorov complexity via a model's negative log-likelihood.</dd>
+      <dt>Unintended memorization</dt><dd>The information a trained model retains about a specific dataset that goes beyond what any model trained to understand the true data-generating process would already know.</dd>
+      <dt>Generalization (intended memorization)</dt><dd>The information a model retains about the true, underlying data-generating process rather than about any one specific dataset.</dd>
+      <dt>Capacity</dt><dd>The maximum amount of unintended memorization a model/training algorithm can ever hold, found by maximizing over all possible datasets.</dd>
+      <dt>Reference model / oracle model</dt><dd>A stand-in for "a model that only knows the true distribution," used to isolate unintended memorization by subtraction. In the paper, either the true data-generating distribution (synthetic data) or a large model trained on far more data (real text).</dd>
+      <dt>Double descent</dt><dd>The phenomenon where test loss rises then falls again as a model crosses a critical point — here shown to occur exactly when dataset size (in bits) exceeds model capacity.</dd>
+      <dt>Grokking</dt><dd>A related phenomenon where a model's generalization performance improves suddenly, well after it has already fit (memorized) the training data.</dd>
+      <dt>Membership inference</dt><dd>Guessing whether a specific example was part of a model's training set, in this paper via a simple loss-cutoff rule.</dd>
+      <dt>F1 score</dt><dd>The harmonic mean of precision and recall; used here to score membership-inference attack performance, where 0.5 indicates random guessing.</dd>
+      <dt>Extraction (extractable memorization)</dt><dd>Whether an adversarial or greedy prompt can make a model reproduce a specific training string verbatim.</dd>
+      <dt>Deduplication</dt><dd>Removing near-duplicate examples from a dataset so that apparent memorization isn't inflated by a model simply having seen the "same" example multiple times.</dd>
+      <dt>Sigmoid function, σ(x)</dt><dd>1 / (1 + e⁻ˣ); an S-shaped curve mapping any real number to the range (0, 1), used in the paper's membership-inference scaling law.</dd>
+      <dt>Tokens-per-parameter ratio</dt><dd>Total training tokens divided by parameter count; a common way to describe how much data a model was trained relative to its size.</dd>
+      <dt>Bits-per-parameter</dt><dd>Model capacity (in bits) divided by parameter count — this paper's headline measure of how much raw information a model architecture can store per weight.</dd>
+      <dt>bfloat16 / float32</dt><dd>Two numeric precisions used to store model weights; bfloat16 uses 16 bits per number, float32 uses 32. The paper finds this has a much smaller effect on memorization capacity than on raw storage size.</dd>
+      <dt>TF-IDF</dt><dd>Term Frequency–Inverse Document Frequency; a score that is high for documents containing words that are rare across the whole dataset, used here to show that rare-content documents are the most memorized.</dd>
+      <dt>d_model / width</dt><dd>The hidden dimension size of a transformer layer — one of the two axes (with depth) the paper varies to produce Table 1.</dd>
+      <dt>n_layer / depth</dt><dd>The number of transformer layers stacked in a model — the other axis varied in Table 1.</dd>
+    </dl>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <div class="footer-inner">
+    <h4>Citation</h4>
+    <p class="footer-meta">
+      Morris, J. X., Sitawarin, C., Guo, C., Kokhlikyan, N., Suh, G. E., Rush, A. M., Chaudhuri, K., &amp; Mahloujifar, S. (2025).
+      <em>How Much Do Language Models Memorize?</em> arXiv:2505.24832.
+    </p>
+    <div class="bibtex-wrap">
+      <pre id="bibtex-block">@article{morris2025memorize,
+  title   = {How Much Do Language Models Memorize?},
+  author  = {Morris, John X. and Sitawarin, Chawin and Guo, Chuan and Kokhlikyan, Narine and Suh, G. Edward and Rush, Alexander M. and Chaudhuri, Kamalika and Mahloujifar, Saeed},
+  journal = {arXiv preprint arXiv:2505.24832},
+  year    = {2025}
+}</pre>
+      <button class="copy-btn" id="bibtex-copy" type="button">Copy</button>
+    </div>
+    <p class="footer-meta" style="margin-top:0.8rem"><a href="https://arxiv.org/abs/2505.24832" target="_blank" rel="noopener">View on arXiv →</a></p>
+
+    <div class="footer-links">
+      <a href="https://github.com/zayddawood-0" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://portfolio-ruddy-eta-kuetcldrzu.vercel.app/" target="_blank" rel="noopener">Portfolio</a>
+      <a href="../index.html">All Papers</a>
+    </div>
+
+    <p class="footer-meta">Explainer written by Muhammad Zayd Dawood. Not affiliated with the authors.</p>
+    <p class="footer-meta">Page format/structure inspired by <a href="https://terencecho.github.io/research-explained/memorization/" target="_blank" rel="noopener">terencecho's research-explained</a> (used only as a formatting reference — all text and code here are original).</p>
+  </div>
+</footer>
+
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js" crossorigin="anonymous"></script>
+<script defer src="script.js"></script>
+</body>
+</html>

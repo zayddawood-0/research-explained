@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Research, Explained</title>
+<meta name="description" content="Interactive, self-contained explainers of machine learning research papers." />
+<link rel="icon" type="image/svg+xml" href="memorization/assets/favicon.svg" />
+<style>
+  :root {
+    --bg: #fbfaf8; --bg-elevated: #ffffff; --bg-inset: #f2efe9;
+    --text: #1c1a17; --text-dim: #5c5650; --border: #e2ddd3;
+    --accent: #a3341f; --accent-soft: #f3e3de; --link: #8a3d1f;
+    --shadow: 0 1px 2px rgba(30,20,10,.06), 0 6px 18px rgba(30,20,10,.07);
+    --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --font-serif: Georgia, "Iowan Old Style", "Palatino Linotype", serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #171512; --bg-elevated: #211e1a; --bg-inset: #1c1a16;
+      --text: #ece7df; --text-dim: #a89e92; --border: #38332c;
+      --accent: #e08a6c; --accent-soft: #3a241b; --link: #f0a584;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 6px 20px rgba(0,0,0,.35);
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font-sans); line-height: 1.6; }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 3.5rem 1.25rem 5rem; }
+  header.hero { margin-bottom: 2.5rem; }
+  .brand { display: flex; align-items: center; gap: 0.6rem; font-weight: 700; margin-bottom: 1.6rem; }
+  .brand svg { width: 28px; height: 28px; }
+  h1 { font-family: var(--font-serif); font-size: 2.3rem; margin: 0 0 0.5rem; }
+  .lede { color: var(--text-dim); font-size: 1.08rem; max-width: 60ch; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.4rem; margin-top: 2rem; }
+  .card {
+    display: block; text-decoration: none; color: inherit;
+    background: var(--bg-elevated); border: 1px solid var(--border);
+    border-radius: 14px; overflow: hidden; box-shadow: var(--shadow);
+    transition: transform .15s ease, box-shadow .15s ease;
+  }
+  .card:hover { transform: translateY(-3px); box-shadow: 0 10px 26px rgba(30,20,10,.12); }
+  .card-art { background: var(--bg-inset); color: var(--accent); padding: 1.2rem 1.2rem 0; height: 140px; }
+  .card-body { padding: 1.1rem 1.3rem 1.4rem; }
+  .card-kicker { font-size: 0.72rem; text-transform: uppercase; letter-spacing: .06em; color: var(--text-dim); font-weight: 700; }
+  .card h2 { font-family: var(--font-serif); font-size: 1.22rem; margin: 0.3rem 0 0.4rem; }
+  .card p { color: var(--text-dim); font-size: 0.92rem; margin: 0; }
+  .card-meta { margin-top: 0.8rem; font-size: 0.8rem; color: var(--text-dim); }
+  footer { margin-top: 4rem; padding-top: 1.5rem; border-top: 1px solid var(--border); font-size: 0.85rem; color: var(--text-dim); }
+  footer a { color: var(--link); }
+  a:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="hero">
+    <div class="brand">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#a3341f"/><path d="M7 23 L7 15 L12 15 L12 23 Z" fill="#fff"/><path d="M13.5 23 L13.5 10 L18.5 10 L18.5 23 Z" fill="#fff"/><path d="M20 23 L20 13 L25 13 L25 23 Z" fill="#fff" opacity="0.6"/></svg>
+      <span>Research, Explained</span>
+    </div>
+    <h1>Papers, made interactive.</h1>
+    <p class="lede">A small collection of self-contained, interactive explainers for machine learning research papers — built to run entirely offline, straight from <code>index.html</code>.</p>
+  </header>
+
+  <section class="grid">
+    <a class="card" href="memorization/index.html">
+      <div class="card-art" aria-hidden="true">
+        <svg viewBox="0 0 400 180" width="100%" height="100%">
+          <line x1="40" y1="20" x2="40" y2="150" stroke="currentColor" stroke-width="1.5" opacity="0.5"/>
+          <line x1="40" y1="150" x2="380" y2="150" stroke="currentColor" stroke-width="1.5" opacity="0.5"/>
+          <line x1="40" y1="55" x2="380" y2="55" stroke="currentColor" stroke-width="1" stroke-dasharray="4 5" opacity="0.4"/>
+          <path d="M40,150 C90,120 120,60 180,56 C260,52 320,54 380,55" fill="none" stroke="#a3341f" stroke-width="3.5" stroke-linecap="round"/>
+          <circle cx="180" cy="57" r="4.5" fill="#a3341f"/>
+        </svg>
+      </div>
+      <div class="card-body">
+        <div class="card-kicker">NLP · Memorization &amp; Capacity</div>
+        <h2>How Much Do Language Models Memorize?</h2>
+        <p>Morris et al. (2025) measure model capacity in bits-per-parameter, explain double descent as a capacity phenomenon, and fit a scaling law for membership inference.</p>
+        <div class="card-meta">arXiv:2505.24832 · FAIR at Meta, Google DeepMind, Cornell, NVIDIA</div>
+      </div>
+    </a>
+  </section>
+
+  <footer>
+    <p>Explainers written by Muhammad Zayd Dawood. Not affiliated with any paper's authors. Educational summaries only — all credit for the underlying research belongs to the original authors.</p>
+    <p><a href="https://github.com/zayddawood-0" target="_blank" rel="noopener">GitHub</a> · <a href="https://portfolio-ruddy-eta-kuetcldrzu.vercel.app/" target="_blank" rel="noopener">Portfolio</a></p>
+  </footer>
+</div>
+</body>
+</html>
